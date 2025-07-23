@@ -1,0 +1,37 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18  # Or use 18/LTS if needed
+    commands:
+      - echo "Installing Node.js dependencies..."
+      - npm install
+
+  pre_build:
+    commands:
+      - echo "Running tests..."
+      - npm test  # Ensure your package.json has a "test" script
+
+  build:
+    commands:
+      - echo "Building backend application..."
+      # Optional: Add build step if your backend needs transpilation (e.g., TypeScript)
+      - npm run build  # Only if you have a build script
+
+  post_build:
+    commands:
+      - echo "Build completed on $(date)"
+      - echo "Logging into ECR..."
+      - aws ecr get-login-password | docker login --username AWS --password-stdin 101861531743.dkr.ecr.us-east-1.amazonaws.com
+      - echo "Building Docker image..."
+      - docker build -t nodejs-backend .
+      - echo "Tagging Docker image..."
+      - docker tag nodejs-backend:latest 101861531743.dkr.ecr.us-east-1.amazonaws.com/nodejs-backend:latest
+      - echo "Pushing to ECR..."
+      - docker push 101861531743.dkr.ecr.us-east-1.amazonaws.com/nodejs-backend:latest
+
+artifacts:
+  files:
+    - '**/*'  # Optional: Only needed if you want to archive files (e.g., for logs)
+  base-directory: '.'  # Adjust if your build outputs to a specific directory
