@@ -1,22 +1,7 @@
-# backend/Dockerfile
-
-# Use official Node.js image
-FROM node:18-alpine
-
-# Create app directory
-WORKDIR /usr/src/app
-
-# Copy package files
+FROM public.ecr.aws/docker/library/node:18-alpine
+WORKDIR /app
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install
-
-# Copy source files
 COPY . .
-
-# Expose the app port
-EXPOSE 5000
-
-# Start the application
+EXPOSE 3000
 CMD ["node", "index.js"]
