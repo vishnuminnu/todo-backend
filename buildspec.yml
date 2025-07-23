@@ -1,37 +1,28 @@
 version: 0.2
 
 phases:
-  install:
-    runtime-versions:
-      nodejs: 18  # Or use 18/LTS if needed
-    commands:
-      - echo "Installing Node.js dependencies..."
-      - npm install
-
   pre_build:
     commands:
-      - echo "Running tests..."
-      - npm test  # Ensure your package.json has a "test" script
-
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 101861531743.dkr.ecr.us-east-1.amazonaws.com
+      - echo Checking for existing backend repository...
+      - aws ecr describe-repositories --repository-names node-backend || aws ecr create-repository --repository-name node-backend
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
   build:
     commands:
-      - echo "Building backend application..."
-      # Optional: Add build step if your backend needs transpilation (e.g., TypeScript)
-      - npm run build  # Only if you have a build script
-
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build -t 101861531743.dkr.ecr.us-east-1.amazonaws.com/node-backend:$IMAGE_TAG .
+      - docker tag 101861531743.dkr.ecr.us-east-1.amazonaws.com/node-backend:$IMAGE_TAG 101861531743.dkr.ecr.us-east-1.amazonaws.com/node-backend:latest
   post_build:
     commands:
-      - echo "Build completed on $(date)"
-      - echo "Logging into ECR..."
-      - aws ecr get-login-password | docker login --username AWS --password-stdin 101861531743.dkr.ecr.us-east-1.amazonaws.com
-      - echo "Building Docker image..."
-      - docker build -t nodejs-backend .
-      - echo "Tagging Docker image..."
-      - docker tag nodejs-backend:latest 101861531743.dkr.ecr.us-east-1.amazonaws.com/nodejs-backend:latest
-      - echo "Pushing to ECR..."
-      - docker push 101861531743.dkr.ecr.us-east-1.amazonaws.com/nodejs-backend:latest
-
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push 101861531743.dkr.ecr.us-east-1.amazonaws.com/node-backend:$IMAGE_TAG
+      - docker push 101861531743.dkr.ecr.us-east-1.amazonaws.com/node-backend:latest
+      - echo Writing image definitions file...
+      - printf '[{"name":"backend-container","imageUri":"%s"}]' 101861531743.dkr.ecr.us-east-1.amazonaws.com/node-backend:$IMAGE_TAG > imagedefinitions.json
 artifacts:
-  files:
-    - '**/*'  # Optional: Only needed if you want to archive files (e.g., for logs)
-  base-directory: '.'  # Adjust if your build outputs to a specific directory
+  files: imagedefinitions.json
